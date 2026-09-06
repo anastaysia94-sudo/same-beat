@@ -2,6 +2,14 @@
 
 SameBeat listens to a short sample of a nearby song, identifies the recording and its current timestamp, then starts the user's own legal stream near that same moment.
 
+## Continue with an AI coding assistant
+
+- Shared project state and roadmap: [`docs/AI_CONTINUATION_GUIDE.md`](docs/AI_CONTINUATION_GUIDE.md)
+- ChatGPT/Codex: [`CHATGPT.md`](CHATGPT.md) and [`AGENTS.md`](AGENTS.md)
+- GitHub Copilot: [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+- Grok: [`GROK.md`](GROK.md)
+- Perplexity: [`PERPLEXITY.md`](PERPLEXITY.md)
+
 ## What works in this MVP
 
 - Installable web app for Android and desktop browsers.
