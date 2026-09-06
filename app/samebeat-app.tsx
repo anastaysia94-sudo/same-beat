@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import YouTubeSyncPlayer from "./youtube-sync-player";
 
 type Provider = "youtube" | "spotify" | "pandora";
 type Phase = "idle" | "requesting" | "listening" | "matching" | "ready" | "error";
@@ -87,6 +88,12 @@ function formatTime(valueMs: number) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+function calculateTargetOffset(match: SongMatch, adjustmentMs: number, atMs = Date.now()) {
+  const elapsed = Math.max(0, atMs - match.referenceTimestampMs);
+  const target = Math.max(0, match.observedOffsetMs + elapsed + adjustmentMs);
+  return match.durationMs ? Math.min(target, Math.max(0, match.durationMs - 250)) : target;
+}
+
 function pickMimeType() {
   if (typeof MediaRecorder === "undefined") return "";
   return [
@@ -144,6 +151,7 @@ export default function SameBeatApp() {
   const [spotifyClientId, setSpotifyClientId] = useState<string | null>(null);
   const [spotifyConnected, setSpotifyConnected] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     const captureInstall = (event: Event) => {
@@ -201,12 +209,17 @@ export default function SameBeatApp() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!match) return;
+    setNowMs(Date.now());
+    const interval = window.setInterval(() => setNowMs(Date.now()), 500);
+    return () => window.clearInterval(interval);
+  }, [match]);
+
   const currentOffsetMs = useMemo(() => {
     if (!match) return 0;
-    const elapsed = Math.max(0, Date.now() - match.referenceTimestampMs);
-    const value = match.observedOffsetMs + elapsed + adjustmentMs;
-    return match.durationMs ? Math.min(value, match.durationMs - 250) : value;
-  }, [match, adjustmentMs, phase]);
+    return calculateTargetOffset(match, adjustmentMs, nowMs);
+  }, [match, adjustmentMs, nowMs]);
 
   const progressPercent = match?.durationMs
     ? Math.min(100, Math.max(0, (currentOffsetMs / match.durationMs) * 100))
@@ -221,6 +234,7 @@ export default function SameBeatApp() {
     setJoinedOffsetMs(null);
     setYoutubePlaying(false);
     setManualYouTubeUrl("");
+    setNowMs(Date.now());
   }, []);
 
   async function listen() {
@@ -344,7 +358,7 @@ export default function SameBeatApp() {
     window.location.assign(`https://accounts.spotify.com/authorize?${params}`);
   }
 
-  async function joinSpotify(offsetMs: number) {
+  async function joinSpotify(offsetMs: number, quiet = false) {
     const token = localStorage.getItem("samebeat_spotify_token");
     const expiresAt = Number(localStorage.getItem("samebeat_spotify_expires") ?? 0);
     if (!token || expiresAt <= Date.now()) {
@@ -367,7 +381,7 @@ export default function SameBeatApp() {
 
     if (response.status === 204) {
       setJoinedOffsetMs(offsetMs);
-      setMessage("Spotify joined. If it sounds a hair off, use the nudge buttons.");
+      if (!quiet) setMessage("Spotify joined. If it sounds a hair off, use the nudge buttons.");
       return;
     }
     if (response.status === 401) {
@@ -387,7 +401,7 @@ export default function SameBeatApp() {
   async function joinNow() {
     if (!match) return;
     setMessage(null);
-    const offset = match.observedOffsetMs + Math.max(0, Date.now() - match.referenceTimestampMs) + adjustmentMs;
+    const offset = calculateTargetOffset(match, adjustmentMs);
 
     if (provider === "youtube") {
       const manualId = extractYouTubeId(manualYouTubeUrl);
@@ -415,6 +429,14 @@ export default function SameBeatApp() {
       const query = encodeURIComponent(`${match.artist} ${match.title}`);
       window.open(`https://www.pandora.com/search/${query}/all`, "_blank", "noopener,noreferrer");
       setMessage("Pandora search opened. Exact seeking needs Pandora partner access.");
+    }
+  }
+
+  function adjustFineSync(deltaMs: number) {
+    const nextAdjustment = Math.max(-15_000, Math.min(15_000, adjustmentMs + deltaMs));
+    setAdjustmentMs(nextAdjustment);
+    if (provider === "spotify" && match && joinedOffsetMs !== null) {
+      void joinSpotify(calculateTargetOffset(match, nextAdjustment), true);
     }
   }
 
@@ -548,9 +570,9 @@ export default function SameBeatApp() {
                 <div className="nudge-row">
                   <span>Fine sync</span>
                   <div>
-                    <button type="button" onClick={() => setAdjustmentMs((value) => value - 1_000)}><SkipBack size={16} /> 1s</button>
+                    <button type="button" onClick={() => adjustFineSync(-500)} aria-label="Move playback half a second earlier"><SkipBack size={16} /> 0.5s</button>
                     <output>{adjustmentMs === 0 ? "On estimate" : `${adjustmentMs > 0 ? "+" : ""}${(adjustmentMs / 1_000).toFixed(1)}s`}</output>
-                    <button type="button" onClick={() => setAdjustmentMs((value) => value + 1_000)}>1s <SkipForward size={16} /></button>
+                    <button type="button" onClick={() => adjustFineSync(500)} aria-label="Move playback half a second later">0.5s <SkipForward size={16} /></button>
                   </div>
                 </div>
               </div>
@@ -567,15 +589,15 @@ export default function SameBeatApp() {
                 </label>
               )}
 
-              {youtubePlaying && youtubeId && joinedOffsetMs !== null && (
-                <div className="player-frame">
-                  <iframe
-                    title={`${match.title} on YouTube`}
-                    src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&playsinline=1&start=${Math.max(0, Math.floor(joinedOffsetMs / 1_000))}`}
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+              {provider === "youtube" && youtubePlaying && youtubeId && joinedOffsetMs !== null && (
+                <YouTubeSyncPlayer
+                  key={`${youtubeId}-${joinedOffsetMs}`}
+                  videoId={youtubeId}
+                  observedOffsetMs={match.observedOffsetMs}
+                  referenceTimestampMs={match.referenceTimestampMs}
+                  adjustmentMs={adjustmentMs}
+                  durationMs={match.durationMs}
+                />
               )}
             </div>
           )}
@@ -645,7 +667,7 @@ export default function SameBeatApp() {
       </section>
 
       <footer>
-        <span>SameBeat · working product preview</span>
+        <span>SameBeat · public beta</span>
         <a href="https://docs.audd.io/" target="_blank" rel="noreferrer">Recognition details <ExternalLink size={13} /></a>
       </footer>
     </main>

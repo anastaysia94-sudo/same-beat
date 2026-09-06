@@ -8,9 +8,10 @@ SameBeat listens to a short sample of a nearby song, identifies the recording an
 - Eight-second microphone capture with explicit permission.
 - Server-side AudD recognition; audio is not persisted by this codebase.
 - Match result with track, artist, album art, duration, and estimated source offset.
-- Network-delay catch-up calculation and one-second fine-sync controls.
+- Live catch-up clock that keeps advancing after recognition.
+- Network-delay catch-up calculation and half-second fine-sync controls.
 - YouTube/YouTube Music resolution through Songlink/Odesli, with optional YouTube Data API fallback.
-- In-page YouTube playback at the calculated timestamp.
+- In-page YouTube playback at the calculated timestamp with measured drift and one-tap resynchronization.
 - Spotify Authorization Code + PKCE connection and Premium playback seek on an active Spotify device.
 - Pandora exact-playback adapter boundary and honest partner-access fallback.
 

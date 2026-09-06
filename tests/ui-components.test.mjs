@@ -35,16 +35,13 @@ async function readCssTree(directory) {
   return contents.join("\n");
 }
 
-test("emits the catalog's animation and scrolling utilities", async () => {
+test("emits SameBeat's live-sync, motion, and reduced-motion styles", async () => {
   const css = await readCssTree(path.join(root, "dist"));
 
-  assert.match(css, /--tw-enter-opacity/);
-  assert.match(css, /scrollbar-width:\s*thin/);
-  assert.match(css, /scrollbar-width:\s*none/);
-  assert.match(css, /scrollbar-gutter:\s*stable/);
-  assert.match(css, /scroll-fade-reveal-b/);
-  assert.match(css, /mask-image:/);
-  assert.match(css, /tw-shimmer/);
+  assert.match(css, /\.live-sync-bar/);
+  assert.match(css, /\.live-sync-bar\.synced/);
+  assert.match(css, /sync-pulse/);
+  assert.match(css, /\.listen-orb/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
 
