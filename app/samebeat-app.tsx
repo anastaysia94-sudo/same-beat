@@ -23,6 +23,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import YouTubeSyncPlayer from "./youtube-sync-player";
+import { calculateTargetOffset } from "./sync-timing";
 
 type Provider = "youtube" | "spotify" | "pandora";
 type Phase = "idle" | "requesting" | "listening" | "matching" | "ready" | "error";
@@ -86,12 +87,6 @@ function formatTime(valueMs: number) {
   const minutes = Math.floor(safe / 60);
   const seconds = safe % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-function calculateTargetOffset(match: SongMatch, adjustmentMs: number, atMs = Date.now()) {
-  const elapsed = Math.max(0, atMs - match.referenceTimestampMs);
-  const target = Math.max(0, match.observedOffsetMs + elapsed + adjustmentMs);
-  return match.durationMs ? Math.min(target, Math.max(0, match.durationMs - 250)) : target;
 }
 
 function pickMimeType() {
@@ -405,7 +400,7 @@ export default function SameBeatApp() {
 
     if (provider === "youtube") {
       const manualId = extractYouTubeId(manualYouTubeUrl);
-      const videoId = match.youtubeVideoId ?? manualId;
+      const videoId = manualId ?? match.youtubeVideoId;
       if (!videoId) {
         const query = encodeURIComponent(`${match.artist} ${match.title} official audio`);
         window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank", "noopener,noreferrer");
@@ -449,7 +444,9 @@ export default function SameBeatApp() {
 
   const selectedProvider = providers.find((item) => item.id === provider) ?? providers[0];
   const SelectedIcon = selectedProvider.icon;
-  const youtubeId = match?.youtubeVideoId ?? extractYouTubeId(manualYouTubeUrl);
+  const manualYouTubeId = extractYouTubeId(manualYouTubeUrl);
+  const youtubeId = manualYouTubeId ?? match?.youtubeVideoId;
+  const manualYouTubeUrlInvalid = manualYouTubeUrl.trim().length > 0 && !manualYouTubeId;
 
   return (
     <main className="app-shell">
@@ -577,16 +574,34 @@ export default function SameBeatApp() {
                 </div>
               </div>
 
-              {provider === "youtube" && !match.youtubeVideoId && (
-                <label className="manual-link">
-                  <span>YouTube link <small>Only needed when automatic matching misses</small></span>
+              {provider === "youtube" && (
+                <details
+                  className="manual-link"
+                  defaultOpen={!match.youtubeVideoId}
+                  key={match.youtubeVideoId ?? "youtube-link-required"}
+                >
+                  <summary>
+                    <span>Use a different YouTube version</span>
+                    <small>
+                      {manualYouTubeId
+                        ? "Custom version active"
+                        : match.youtubeVideoId
+                          ? "Fix a long intro, remix, or live recording"
+                          : "Add the matching recording to play"}
+                    </small>
+                  </summary>
                   <input
                     type="url"
                     value={manualYouTubeUrl}
                     onChange={(event) => setManualYouTubeUrl(event.target.value)}
                     placeholder="Paste the matching YouTube link"
+                    aria-label="Matching YouTube video link"
+                    aria-invalid={manualYouTubeUrlInvalid}
                   />
-                </label>
+                  {manualYouTubeUrlInvalid && (
+                    <small className="link-error">Use a full youtube.com or youtu.be link.</small>
+                  )}
+                </details>
               )}
 
               {provider === "youtube" && youtubePlaying && youtubeId && joinedOffsetMs !== null && (

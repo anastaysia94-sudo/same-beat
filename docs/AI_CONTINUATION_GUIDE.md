@@ -23,7 +23,8 @@ The user should be able to open the app, choose a provider, tap the microphone o
 - Resolves provider links through Songlink/Odesli, with optional YouTube Data API fallback.
 - Computes network-delay catch-up continuously after recognition.
 - Embeds YouTube with the official IFrame Player API.
-- Reads actual YouTube player time, reports drift, supports half-second nudges, and provides one-tap resynchronization.
+- Reads actual YouTube player time, reports drift, automatically recovers from sustained gaps, supports half-second nudges, and provides one-tap resynchronization.
+- Compares recognized and YouTube durations to flag likely alternate versions and lets the user override an automatic match with a different YouTube link.
 - Supports Spotify Authorization Code with PKCE and `position_ms` playback when configured and allowed.
 - Opens Pandora matches/search honestly; exact automatic Pandora seeking is not implemented without partner approval.
 - Does not persist captured audio, recognition results, or listening history in this codebase.
@@ -37,6 +38,7 @@ The public app may fall back to AudD's shared `test` token, which is limited to 
 | --- | --- | --- |
 | Product UI | `app/samebeat-app.tsx` | Capture flow, provider selection, match display, timing target, Spotify flow, install prompt |
 | Live YouTube sync | `app/youtube-sync-player.tsx` | IFrame API loading, player creation, drift measurement, nudging, resync |
+| Timing policy | `app/sync-timing.ts` | Catch-up calculation, bounded automatic recovery, duration-mismatch heuristic |
 | Recognition API | `app/api/recognize/route.ts` | AudD request, timecode parsing, metadata, Songlink resolution, YouTube fallback |
 | Public runtime config | `app/api/config/route.ts` | Returns only the Spotify client ID when configured |
 | Spotify token exchange | `app/api/spotify/token/route.ts` | PKCE authorization-code exchange and redirect-origin validation |
@@ -85,6 +87,7 @@ https://samebeat-sync.anastaysia98.chatgpt.site/
 - YouTube seeks near the requested position and may land on a nearby keyframe.
 - Browser autoplay rules can require the user to tap the native YouTube play control.
 - Numerical drift compares provider playback time with the calculated target; it does not acoustically compare two devices in real time.
+- Duration warnings are heuristics: they can identify a large runtime difference but cannot prove that two recordings use the same edit or intro.
 - Spotify requires Premium and an active Spotify playback device, and public product use may require platform review.
 - Pandora exact playback/seek requires approved partner access.
 - A Play Store APK/AAB has not yet replaced the installable Android PWA.

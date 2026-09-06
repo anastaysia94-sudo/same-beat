@@ -19,7 +19,8 @@ SameBeat listens to a short sample of a nearby song, identifies the recording an
 - Live catch-up clock that keeps advancing after recognition.
 - Network-delay catch-up calculation and half-second fine-sync controls.
 - YouTube/YouTube Music resolution through Songlink/Odesli, with optional YouTube Data API fallback.
-- In-page YouTube playback at the calculated timestamp with measured drift and one-tap resynchronization.
+- In-page YouTube playback with measured drift, automatic recovery, one-tap resynchronization, and duration-based version warnings.
+- Manual YouTube-version replacement when an automatic match has a long intro, remix, live cut, or other timing mismatch.
 - Spotify Authorization Code + PKCE connection and Premium playback seek on an active Spotify device.
 - Pandora exact-playback adapter boundary and honest partner-access fallback.
 
@@ -39,7 +40,7 @@ For Spotify, add the deployed root URL with a trailing slash as an allowed redir
 
 `playback target = recognized song offset + elapsed time after capture + user calibration`
 
-Recognition APIs estimate a point in the sampled recording. Network and player startup latency are added before playback. YouTube starts at whole-second precision. The fine-sync controls compensate for different masters, music-video intros, room echo, and device buffering.
+Recognition APIs estimate a point in the sampled recording. Network and player startup latency are added before playback. SameBeat monitors the embedded player's actual time, corrects sustained drift with a bounded retry policy, and leaves half-second fine controls available for human calibration. A duration difference can flag a likely alternate recording, but it cannot prove acoustic alignment between two devices.
 
 ## Provider realities
 
