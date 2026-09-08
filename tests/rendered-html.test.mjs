@@ -18,14 +18,15 @@ async function readJavaScriptTree(directory) {
   return contents.join("\n");
 }
 
-test("builds the SameBeat product, recognition routes, and live-sync player", async () => {
+test("builds the SameBeat product, discovery metadata, recognition routes, and live-sync player", async () => {
   const worker = await readFile(path.join(root, "dist/server/index.js"), "utf8");
   const client = await readJavaScriptTree(path.join(root, "dist/client"));
   const manifest = JSON.parse(await readFile(path.join(root, "dist/client/manifest.webmanifest"), "utf8"));
 
-  assert.match(worker, /SameBeat — join the song already playing/);
+  assert.match(worker, /SameBeat — Identify a Song and Join It at the Same Moment/);
   assert.match(worker, /\/api\/recognize/);
   assert.match(worker, /\/api\/spotify\/token/);
+  assert.match(worker, /\/api\/provider-status/);
   assert.match(client, /Resync now/);
   assert.match(client, /Auto-correcting/);
   assert.match(client, /Possible version mismatch/);
