@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Sitemap: https://samebeat-sync.anastaysia98.chatgpt.site/sitemap.xml
