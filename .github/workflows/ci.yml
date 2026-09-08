@@ -1,0 +1,41 @@
+name: SameBeat CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "public/**"
+      - "tests/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: node --test tests/*.test.mjs
+      - name: Verify public discovery and provider-status contract
+        run: |
+          test -f public/robots.txt
+          test -f public/sitemap.xml
+          test -f app/how-it-works/page.tsx
+          test -f app/privacy/page.tsx
+          test -f app/providers/page.tsx
+          test -f app/api/provider-status/route.ts
+          grep -q "application/ld+json" app/layout.tsx
+          grep -q "partner_access_required" app/api/provider-status/route.ts
